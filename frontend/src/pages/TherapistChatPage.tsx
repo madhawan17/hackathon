@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, Bot, User } from 'lucide-react';
 
 // Define a type for our message objects for better code quality
 type Message = {
@@ -6,14 +7,40 @@ type Message = {
   content: string;
 };
 
+// A simple, attractive typing indicator component
+const TypingIndicator = () => (
+  <div className="flex items-center space-x-2">
+    <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+    <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+    <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
+  </div>
+);
+
 const TherapistChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Add a welcoming message when the component loads
+  useEffect(() => {
+    setMessages([
+      {
+        role: 'assistant',
+        content: "Hello! I'm Medibot, your personal wellness assistant. How can I help you today?",
+      },
+    ]);
+  }, []);
+
+  // Automatically scroll to the latest message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() === '') return;
+    if (input.trim() === '' || isLoading) return;
 
     const userMessage: Message = { role: 'user', content: input };
     setMessages((prevMessages) => [...prevMessages, userMessage]);
@@ -40,7 +67,7 @@ const TherapistChatPage = () => {
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      const errorMessage: Message = { role: 'assistant', content: 'Sorry, something went wrong.' };
+      const errorMessage: Message = { role: 'assistant', content: 'Sorry, I seem to be having trouble connecting. Please try again in a moment.' };
       setMessages((prevMessages) => [...prevMessages, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -48,35 +75,78 @@ const TherapistChatPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen p-4 bg-gray-100">
-      <h1 className="text-2xl font-bold mb-4 text-center">Chat with Medibot</h1>
-      <div className="flex-grow overflow-y-auto mb-4 p-4 bg-white rounded-lg shadow-md">
+    <div className="flex flex-col h-screen bg-gray-50 font-sans">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 p-4 shadow-sm">
+        <h1 className="text-xl font-bold text-center text-gray-800">Chat with Medibot</h1>
+      </header>
+
+      {/* Chat Area */}
+      <div className="flex-grow overflow-y-auto p-6 space-y-6">
         {messages.map((msg, index) => (
-          <div key={index} className={`my-2 p-3 rounded-lg max-w-lg ${
-            msg.role === 'user' ? 'bg-blue-500 text-white self-end ml-auto' : 'bg-gray-300 text-black self-start mr-auto'
-          }`}>
-            {msg.content}
+          <div key={index} className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {/* Assistant Avatar */}
+            {msg.role === 'assistant' && (
+              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
+                <Bot size={20} />
+              </div>
+            )}
+
+            {/* Message Bubble */}
+            <div className={`p-4 rounded-2xl max-w-lg shadow-sm ${
+              msg.role === 'user' 
+                ? 'bg-blue-500 text-white rounded-br-none' 
+                : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'
+            }`}>
+              <p className="text-sm">{msg.content}</p>
+            </div>
+
+            {/* User Avatar */}
+            {msg.role === 'user' && (
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white flex-shrink-0">
+                <User size={20} />
+              </div>
+            )}
           </div>
         ))}
-        {isLoading && <div className="p-3 rounded-lg bg-gray-300 text-black self-start mr-auto">Thinking...</div>}
+        
+        {/* Typing indicator */}
+        {isLoading && (
+          <div className="flex items-start gap-3 justify-start">
+            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
+              <Bot size={20} />
+            </div>
+            <div className="p-4 rounded-2xl bg-white text-gray-800 border border-gray-200 rounded-bl-none shadow-sm">
+              <TypingIndicator />
+            </div>
+          </div>
+        )}
+        
+        {/* Invisible element to scroll to */}
+        <div ref={chatEndRef} />
       </div>
-      <form onSubmit={handleSendMessage} className="flex">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a medical question..."
-          className="flex-grow p-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          className="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600 disabled:bg-blue-300"
-          disabled={isLoading}
-        >
-          Send
-        </button>
-      </form>
+
+      {/* Input Area */}
+      <div className="p-4 bg-white border-t border-gray-200 shadow-inner">
+        <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-grow p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-shadow"
+            disabled={isLoading}
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            className="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+            disabled={isLoading || input.trim() === ''}
+          >
+            <Send size={20} />
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
